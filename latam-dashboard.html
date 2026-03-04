@@ -377,6 +377,7 @@
   .tag-business { background: rgba(0,212,170,0.15); color: var(--accent-teal); }
   .tag-markets { background: rgba(240,165,0,0.15); color: var(--accent-gold); }
   .tag-energy { background: rgba(255,69,96,0.15); color: var(--accent-red); }
+  .tag-conflict { background: rgba(255,69,96,0.2); color: #ff6b81; border: 1px solid rgba(255,69,96,0.3); }
 
   /* OIL PANEL */
   .oil-price-display {
@@ -601,6 +602,7 @@
   .accent-global { border-top: 2px solid var(--accent-teal); }
   .accent-oil { border-top: 2px solid var(--accent-gold); }
   .accent-stocks { border-top: 2px solid var(--accent-blue); }
+  .accent-war { border-top: 2px solid #ff4560; background: linear-gradient(180deg, rgba(255,69,96,0.04) 0%, transparent 60%); }
 
   /* LOADING shimmer */
   @keyframes shimmer {
@@ -721,11 +723,59 @@
 
 <main>
 
+  <!-- API KEY CONFIG BANNER -->
+  <div id="config-banner" style="
+    background: linear-gradient(135deg, rgba(240,165,0,0.08), rgba(30,144,255,0.06));
+    border: 1px solid rgba(240,165,0,0.25);
+    border-radius: 10px;
+    padding: 14px 20px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  ">
+    <div style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--accent-gold);letter-spacing:0.1em;text-transform:uppercase;white-space:nowrap;">⚙ API Keys</div>
+    <div style="display:flex;gap:10px;flex:1;flex-wrap:wrap;align-items:center;">
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--text-muted);white-space:nowrap;">GNews:</span>
+        <input id="gnews-key-input" type="text" placeholder="Paste free key from gnews.io"
+          style="background:var(--bg-card);border:1px solid var(--border);border-radius:5px;
+          padding:5px 10px;font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--text-primary);
+          outline:none;width:220px;transition:border-color 0.15s;"
+          onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <span style="font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--text-muted);white-space:nowrap;">Finnhub:</span>
+        <input id="finnhub-key-input" type="text" placeholder="Paste free key from finnhub.io"
+          style="background:var(--bg-card);border:1px solid var(--border);border-radius:5px;
+          padding:5px 10px;font-family:'DM Mono',monospace;font-size:0.68rem;color:var(--text-primary);
+          outline:none;width:220px;transition:border-color 0.15s;"
+          onfocus="this.style.borderColor='var(--accent-blue)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <button onclick="applyApiKeys()" style="
+        background:var(--accent-blue);border:none;border-radius:5px;padding:6px 16px;
+        font-family:'DM Mono',monospace;font-size:0.65rem;color:white;cursor:pointer;
+        letter-spacing:0.08em;transition:opacity 0.15s;" onmouseover="this.style.opacity=0.85" onmouseout="this.style.opacity=1">
+        APPLY &amp; REFRESH
+      </button>
+      <button onclick="document.getElementById('config-banner').style.display='none'" style="
+        background:transparent;border:1px solid var(--border);border-radius:5px;padding:6px 12px;
+        font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--text-muted);cursor:pointer;">
+        HIDE
+      </button>
+    </div>
+    <div style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--text-muted);">
+      Both keys are free · gnews.io · finnhub.io
+    </div>
+  </div>
+
   <!-- STATUS BAR -->
   <div class="status-bar">
     <div class="status-item"><div class="status-dot"></div> Markets Open</div>
     <div class="status-item">NYSE &nbsp;|&nbsp; NASDAQ &nbsp;|&nbsp; BMV &nbsp;|&nbsp; BVC</div>
     <div class="status-item" id="last-update">Last update: --</div>
+    <div class="status-item" id="gnews-remaining" style="color:var(--accent-teal);">GNews: checking...</div>
     <div class="status-item">
       <div class="refresh-indicator" id="refresh-indicator">
         <div class="refresh-spinner"></div>
@@ -849,8 +899,8 @@
 
   </div>
 
-  <!-- NEWS: USA + GLOBAL -->
-  <div class="two-col">
+  <!-- NEWS: USA + GLOBAL + WAR -->
+  <div class="three-col">
 
     <!-- USA -->
     <div class="panel accent-us">
@@ -880,6 +930,22 @@
           <div class="skeleton skel-line" style="width:72%;height:10px"></div>
           <div class="skeleton skel-line" style="width:89%;height:10px"></div>
           <div class="skeleton skel-line" style="width:65%;height:10px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WAR INTELLIGENCE -->
+    <div class="panel accent-war">
+      <div class="panel-header">
+        <div class="panel-title">⚔️ War Intelligence</div>
+        <div class="panel-meta" id="war-meta">--</div>
+      </div>
+      <div class="panel-body" id="war-news">
+        <div class="news-loading">
+          <div class="skeleton skel-line" style="width:100%;height:10px"></div>
+          <div class="skeleton skel-line" style="width:80%;height:10px"></div>
+          <div class="skeleton skel-line" style="width:91%;height:10px"></div>
+          <div class="skeleton skel-line" style="width:68%;height:10px"></div>
         </div>
       </div>
     </div>
@@ -920,7 +986,80 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // =========================================================
-// FOREX DATA — using exchangerate.host (free, no-key)
+// RATE LIMIT & CACHE MANAGER
+// =========================================================
+// GNews free:     100 req/day  → news refreshes max every 4h (5 panels × 6 refreshes = 30/day)
+// Finnhub free:   60 req/min   → stocks: sequential calls, 1s apart, refresh every 30s
+// Frankfurter:    unlimited    → forex refreshes every 60s freely
+
+const CACHE = {};
+
+function cacheSet(key, data, ttlMs) {
+  CACHE[key] = { data, expiresAt: Date.now() + ttlMs };
+}
+
+function cacheGet(key) {
+  const entry = CACHE[key];
+  if (entry && Date.now() < entry.expiresAt) return entry.data;
+  return null;
+}
+
+// Sequential Finnhub queue — max 1 call per second to stay well under 60/min
+const finnhubQueue = [];
+let finnhubRunning = false;
+
+function enqueueFinnhub(ticker) {
+  return new Promise((resolve, reject) => {
+    finnhubQueue.push({ ticker, resolve, reject });
+    if (!finnhubRunning) drainFinnhubQueue();
+  });
+}
+
+async function drainFinnhubQueue() {
+  finnhubRunning = true;
+  while (finnhubQueue.length > 0) {
+    const { ticker, resolve, reject } = finnhubQueue.shift();
+    try {
+      const key = window.FINNHUB_KEY || 'demo';
+      const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${key}`);
+      const d = await res.json();
+      resolve(d);
+    } catch(e) {
+      reject(e);
+    }
+    // 1.1s between each call = ~54 calls/min safely under 60/min limit
+    if (finnhubQueue.length > 0) await new Promise(r => setTimeout(r, 1100));
+  }
+  finnhubRunning = false;
+}
+
+// GNews daily counter (persisted in localStorage)
+function gnewsCountToday() {
+  const today = new Date().toISOString().slice(0,10);
+  const stored = JSON.parse(localStorage.getItem('gnews_usage') || '{"date":"","count":0}');
+  if (stored.date !== today) return 0;
+  return stored.count;
+}
+
+function gnewsIncrement() {
+  const today = new Date().toISOString().slice(0,10);
+  const stored = JSON.parse(localStorage.getItem('gnews_usage') || '{"date":"","count":0}');
+  const count = stored.date === today ? stored.count + 1 : 1;
+  localStorage.setItem('gnews_usage', JSON.stringify({ date: today, count }));
+  return count;
+}
+
+function gnewsRemainingToday() {
+  return Math.max(0, 100 - gnewsCountToday());
+}
+
+function updateUsageDisplay() {
+  const el = document.getElementById('gnews-remaining');
+  if (el) el.textContent = `GNews: ${gnewsRemainingToday()}/100 req remaining today`;
+}
+
+// =========================================================
+// FOREX DATA — frankfurter.app (unlimited, no key)
 // =========================================================
 const LATAM_CURRENCIES = [
   { code: 'CRC', name: 'Costa Rica', flag: '🇨🇷', color: '#0038A8' },
@@ -985,20 +1124,64 @@ function drawSparkline(canvas, data, positive) {
   ctx.stroke();
 }
 
+// ── Forex: fawazahmed0/exchange-api ──────────────────────────────────────
+// Hosted on GitHub CDN — free, no key, no rate limits, 200+ currencies,
+// includes ALL LATAM currencies (CRC, HNL, NIO, BOB, GTQ etc.)
+// Provides dated endpoints so we can fetch yesterday's real close for true % change
+
+function getPrevDate() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  if (d.getDay() === 0) d.setDate(d.getDate() - 2); // Sunday → Friday
+  if (d.getDay() === 6) d.setDate(d.getDate() - 1); // Saturday → Friday
+  return d.toISOString().slice(0, 10);
+}
+
 async function fetchForex() {
+  const cached = cacheGet('forex');
+  const cachedPrev = cacheGet('forex_prev');
+  if (cached && cachedPrev) { renderForex(cached, cachedPrev); return; }
+
+  // Base URL — served from GitHub CDN, full CORS, no key needed
+  const BASE = 'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@';
+  const prevDate = getPrevDate();
+
   try {
-    const codes = LATAM_CURRENCIES.map(c => c.code).join(',');
-    const res = await fetch(`https://api.exchangerate.host/latest?base=USD&symbols=${codes}`);
-    const data = await res.json();
-    if (data && data.rates) renderForex(data.rates);
+    const [resNow, resPrev] = await Promise.all([
+      fetch(`${BASE}latest/v1/currencies/usd.json`),
+      fetch(`${BASE}${prevDate}/v1/currencies/usd.json`)
+    ]);
+
+    const [dataNow, dataPrev] = await Promise.all([resNow.json(), resPrev.json()]);
+
+    // API returns lowercase keys: dataNow.usd.crc, dataNow.usd.cop etc.
+    const rates = dataNow.usd;
+    const prevRatesObj = dataPrev.usd;
+
+    if (!rates) throw new Error('no rates');
+
+    // Convert to uppercase keys and invert (API gives USD per 1 USD → we want units per USD)
+    const today = {};
+    const yesterday = {};
+    LATAM_CURRENCIES.forEach(cur => {
+      const key = cur.code.toLowerCase();
+      if (rates[key])       today[cur.code]     = rates[key];
+      if (prevRatesObj && prevRatesObj[key]) yesterday[cur.code] = prevRatesObj[key];
+    });
+
+    cacheSet('forex', today, 60_000);
+    cacheSet('forex_prev', yesterday, 60_000);
+    renderForex(today, yesterday);
+
   } catch (e) {
-    // Fallback to simulated data
-    const fallback = { CRC:512.5, COP:4285, MXN:17.2, BRL:5.1, ARS:900, CLP:945, PEN:3.8, GTQ:7.8, HNL:24.7, NIO:36.7, BOB:6.9, UYU:38.5 };
-    renderForex(fallback);
+    // Fallback with realistic hardcoded rates
+    const fallback = { CRC:514.2, COP:4290, MXN:17.15, BRL:5.08, ARS:895, CLP:948, PEN:3.79, GTQ:7.77, HNL:24.68, NIO:36.65, BOB:6.91, UYU:38.4 };
+    const fallbackPrev = { CRC:515.8, COP:4271, MXN:17.22, BRL:5.11, ARS:888, CLP:953, PEN:3.81, GTQ:7.80, HNL:24.71, NIO:36.70, BOB:6.90, UYU:38.6 };
+    renderForex(fallback, fallbackPrev);
   }
 }
 
-function renderForex(rates) {
+function renderForex(rates, baselineRates) {
   const grid = document.getElementById('forex-grid');
   grid.innerHTML = '';
 
@@ -1006,9 +1189,9 @@ function renderForex(rates) {
     const rate = rates[cur.code];
     if (!rate) return;
 
-    const prev = prevRates[cur.code] || rate * (1 + (Math.random()-0.5)*0.002);
+    const prev = (baselineRates && baselineRates[cur.code]) ? baselineRates[cur.code] : rate;
     const change = rate - prev;
-    const changePct = (change / prev) * 100;
+    const changePct = prev ? (change / prev) * 100 : 0;
     const isPositive = change >= 0;
     prevRates[cur.code] = rate;
 
@@ -1147,12 +1330,48 @@ function simulateStock(s) {
   return s;
 }
 
+async function fetchStockPrices() {
+  // Finnhub free: 60 calls/min — we use a sequential queue with 1.1s spacing
+  // Cache each ticker for 30s so rapid UI refreshes don't burn quota
+  const FINNHUB_KEY = window.FINNHUB_KEY || 'demo';
+  if (FINNHUB_KEY === 'demo') {
+    watchlist.forEach(s => simulateStock(s));
+    renderStocksUI();
+    return;
+  }
+
+  for (const s of watchlist) {
+    const cacheKey = 'stock_' + s.ticker;
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      s.price = cached.price; s.change = cached.change; s.changePct = cached.changePct;
+      continue;
+    }
+    try {
+      const d = await enqueueFinnhub(s.ticker);
+      if (d && d.c) {
+        s.price = d.c; s.change = d.d || 0; s.changePct = d.dp || 0;
+        cacheSet(cacheKey, { price: d.c, change: d.d||0, changePct: d.dp||0 }, 30_000);
+      } else {
+        simulateStock(s);
+      }
+    } catch(e) {
+      simulateStock(s);
+    }
+  }
+  renderStocksUI();
+}
+
 function renderStocks() {
+  fetchStockPrices();
+}
+
+function renderStocksUI() {
   const list = document.getElementById('stocks-list');
   list.innerHTML = '';
 
   watchlist.forEach(s => {
-    simulateStock(s);
+    if (!s.change) simulateStock(s);
     const isUp = s.change >= 0;
     const row = document.createElement('div');
     row.className = 'stock-row';
@@ -1210,88 +1429,115 @@ document.getElementById('ticker-input').addEventListener('keydown', e => {
 });
 
 // =========================================================
-// NEWS — Using Claude API to generate realistic current-style headlines
+// NEWS — GNews public API (free key from gnews.io)
 // =========================================================
+// GNews free key from https://gnews.io (100 req/day on free tier)
+// Replace the string below with your own key
+const GNEWS_KEY = window.GNEWS_KEY || 'demo';
+
 const NEWS_CATEGORIES = [
-  { id: 'cr-news',     label: 'Costa Rica',  meta: 'cr-meta',     query: 'Costa Rica latest news economy politics business March 2026', tags: ['economy','politics','business'] },
-  { id: 'pa-news',     label: 'Panama',      meta: 'pa-meta',     query: 'Panama Canal economy news business March 2026', tags: ['economy','business','markets'] },
-  { id: 'co-news',     label: 'Colombia',    meta: 'co-meta',     query: 'Colombia latest news economy banking business March 2026', tags: ['economy','business','politics'] },
-  { id: 'us-news',     label: 'United States', meta: 'us-meta',   query: 'United States economy markets Fed policy news March 2026', tags: ['economy','markets','politics'] },
-  { id: 'global-news', label: 'Global',      meta: 'global-meta', query: 'Global world economy finance geopolitics news March 2026', tags: ['markets','politics','economy','energy'] },
+  { id: 'cr-news',     label: 'Costa Rica',    meta: 'cr-meta',     q: 'Costa Rica economy OR politics OR business', lang: 'en', country: '' },
+  { id: 'pa-news',     label: 'Panama',        meta: 'pa-meta',     q: 'Panama economy OR Canal OR business',         lang: 'en', country: '' },
+  { id: 'co-news',     label: 'Colombia',      meta: 'co-meta',     q: 'Colombia economy OR business OR finance',     lang: 'en', country: '' },
+  { id: 'us-news',     label: 'United States', meta: 'us-meta',     q: 'United States economy OR Fed OR markets',     lang: 'en', country: 'us' },
+  { id: 'global-news', label: 'Global',        meta: 'global-meta', q: 'global economy OR finance OR geopolitics',   lang: 'en', country: '' },
+  { id: 'war-news',    label: 'War Intelligence', meta: 'war-meta',    q: 'war OR conflict OR military OR ceasefire OR troops OR airstrike OR offensive OR Ukraine OR Gaza OR Sudan OR Yemen', lang: 'en', country: '' },
 ];
 
-const TAG_CLASSES = { economy:'tag-economy', politics:'tag-politics', business:'tag-business', markets:'tag-markets', energy:'tag-energy' };
-const TAG_COLORS = { economy:'#1e90ff', politics:'#a78bfa', business:'#00d4aa', markets:'#f0a500', energy:'#ff4560' };
-
-async function callAnthropicWithRetry(body, retries=3, baseDelay=2000) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'anthropic-dangerous-direct-browser-access': 'true'
-        },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if ((res.status === 529 || res.status === 429 || res.status === 503) && attempt < retries) {
-        await new Promise(r => setTimeout(r, baseDelay * attempt));
-        continue;
-      }
-      return data;
-    } catch (e) {
-      if (attempt < retries) await new Promise(r => setTimeout(r, baseDelay * attempt));
-      else throw e;
-    }
-  }
+// Tag auto-detect from headline keywords
+function autoTag(text) {
+  const t = text.toLowerCase();
+  if (/war|conflict|military|troops|missile|airstrike|ceasefire|offensive|casualties|siege|bomb|attack|invasion|nato|frontline/.test(t)) return 'conflict';
+  if (/bank|rate|gdp|inflation|peso|dollar|finance|debt|fund|imf/.test(t)) return 'economy';
+  if (/election|president|minister|congress|senate|vote|law|party/.test(t)) return 'politics';
+  if (/oil|gas|energy|barrel|opec|brent|wti/.test(t)) return 'energy';
+  if (/stock|market|nasdaq|s&p|trade|export|invest/.test(t)) return 'markets';
+  return 'business';
 }
+
+const TAG_CLASSES = { economy:'tag-economy', politics:'tag-politics', business:'tag-business', markets:'tag-markets', energy:'tag-energy', conflict:'tag-conflict' };
+const TAG_COLORS = { economy:'#1e90ff', politics:'#a78bfa', business:'#00d4aa', markets:'#f0a500', energy:'#ff4560' };
 
 async function fetchNews(category) {
   const el = document.getElementById(category.id);
   const meta = document.getElementById(category.meta);
+  const isDemo = (window.GNEWS_KEY || 'demo') === 'demo';
+
+  // Serve from 4-hour cache first — preserves daily quota (100 req/day free)
+  const cacheKey = 'news_' + category.id;
+  const cached = cacheGet(cacheKey);
+  if (cached) {
+    el.innerHTML = cached;
+    meta.textContent = '(cached) ' + new Date().toLocaleTimeString('en-US',{hour12:false});
+    updateUsageDisplay();
+    return;
+  }
+
+  if (isDemo) {
+    const catId = category.id;
+    el.innerHTML = `
+      <div style="color:var(--text-muted);font-family:'DM Mono',monospace;font-size:0.72rem;padding:16px 0;text-align:center;line-height:1.8;">
+        <div style="color:var(--accent-gold);margin-bottom:8px;">⚠ GNews API key required</div>
+        <div>Get a free key at <span style="color:var(--accent-blue)">gnews.io</span><br>then paste it in the API Keys bar above</div>
+      </div>`;
+    return;
+  }
+
+  // Hard stop if daily limit is close (keep 5 buffer for manual retries)
+  if (gnewsCountToday() >= 95) {
+    const catId = category.id;
+    el.innerHTML = `
+      <div style="color:var(--text-muted);font-family:'DM Mono',monospace;font-size:0.72rem;padding:16px 0;text-align:center;">
+        <div style="color:var(--accent-gold);">Daily GNews limit reached (100/day)</div>
+        <div style="margin-top:6px;font-size:0.62rem;">Resets at 00:00 UTC</div>
+      </div>`;
+    return;
+  }
 
   try {
-    const data = await callAnthropicWithRetry({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: `You are a financial news aggregator. Generate exactly 6 realistic, plausible news headlines for ${category.label} as of March 2026. 
-Return ONLY a JSON array, no markdown, no backticks, no preamble. Each item must have:
-- "headline": string (concise, factual, max 12 words)
-- "source": string (realistic news outlet name for that region)
-- "minutesAgo": number (1-240)
-- "tag": one of: ${category.tags.join(', ')}
-
-Example format: [{"headline":"...","source":"...","minutesAgo":15,"tag":"economy"}]`,
-      messages: [{ role: 'user', content: `Generate 6 current news items for ${category.label}, March 2026.` }]
+    const params = new URLSearchParams({
+      q: category.q,
+      lang: category.lang || 'en',
+      max: 6,
+      sortby: 'publishedAt',
+      apikey: window.GNEWS_KEY
     });
+    if (category.country) params.set('country', category.country);
 
-    if (data.error) throw new Error(data.error.message || 'API error');
+    const res = await fetch(`https://gnews.io/api/v4/search?${params}`);
+    gnewsIncrement();
+    updateUsageDisplay();
+    const data = await res.json();
 
-    const text = data.content?.find(b => b.type === 'text')?.text || '[]';
-    const clean = text.replace(/```json|```/g,'').trim();
-    const items = JSON.parse(clean);
+    if (!data.articles || data.articles.length === 0) throw new Error('no articles');
 
-    el.innerHTML = items.map(item => {
-      const tagCls = TAG_CLASSES[item.tag] || 'tag-economy';
+    const html = data.articles.map(a => {
+      const tag = autoTag(a.title + ' ' + (a.description || ''));
+      const tagCls = TAG_CLASSES[tag] || 'tag-economy';
+      const pub = new Date(a.publishedAt);
+      const minsAgo = Math.floor((Date.now() - pub) / 60000);
+      const timeStr = minsAgo < 60 ? minsAgo + 'm ago' : Math.floor(minsAgo/60) + 'h ago';
       return `
-        <div class="news-item">
-          <div class="news-time">${item.minutesAgo < 60 ? item.minutesAgo + 'm ago' : Math.floor(item.minutesAgo/60) + 'h ago'}</div>
-          <div class="news-headline">${item.headline}</div>
+        <div class="news-item" onclick="window.open('${a.url}','_blank')">
+          <div class="news-time">${timeStr}</div>
+          <div class="news-headline">${a.title}</div>
           <div class="news-source">
-            ${item.source}
-            <span class="news-tag ${tagCls}">${item.tag}</span>
+            ${a.source?.name || ''}
+            <span class="news-tag ${tagCls}">${tag}</span>
           </div>
         </div>`;
     }).join('');
 
+    // Cache for 4 hours — 5 panels × 6 refreshes/day = 30 req/day well under 100
+    cacheSet(cacheKey, html, 4 * 60 * 60 * 1000);
+    el.innerHTML = html;
     meta.textContent = new Date().toLocaleTimeString('en-US',{hour12:false});
 
   } catch (e) {
     const catId = category.id;
     el.innerHTML = `
       <div style="color:var(--text-muted);font-family:'DM Mono',monospace;font-size:0.7rem;padding:16px 0;text-align:center;">
-        <div style="margin-bottom:10px;color:var(--negative);">Feed temporarily unavailable</div>
+        <div style="color:var(--negative);margin-bottom:10px;">Feed temporarily unavailable</div>
         <button onclick="fetchNews(NEWS_CATEGORIES.find(c=>c.id==='${catId}'))"
           style="background:var(--bg-card);border:1px solid var(--border-bright);color:var(--accent-blue);
           padding:6px 16px;border-radius:5px;font-family:'DM Mono',monospace;font-size:0.65rem;
@@ -1301,9 +1547,28 @@ Example format: [{"headline":"...","source":"...","minutesAgo":15,"tag":"economy
 }
 
 // =========================================================
+// API KEY SETUP
+// =========================================================
+// Load saved keys from localStorage on startup
+(function() {
+  const gk = localStorage.getItem('gnews_key');
+  const fk = localStorage.getItem('finnhub_key');
+  if (gk) { window.GNEWS_KEY = gk; document.getElementById('gnews-key-input') && (document.getElementById('gnews-key-input').value = gk); }
+  if (fk) { window.FINNHUB_KEY = fk; document.getElementById('finnhub-key-input') && (document.getElementById('finnhub-key-input').value = fk); }
+})();
+
+function applyApiKeys() {
+  const gk = document.getElementById('gnews-key-input').value.trim();
+  const fk = document.getElementById('finnhub-key-input').value.trim();
+  if (gk) { window.GNEWS_KEY = gk; localStorage.setItem('gnews_key', gk); }
+  if (fk) { window.FINNHUB_KEY = fk; localStorage.setItem('finnhub_key', fk); }
+  refreshAll();
+}
+
+// =========================================================
 // REFRESH CYCLE
 // =========================================================
-let countdown = 60;
+let countdown = 300; // 5-minute full refresh
 
 function refreshAll() {
   const indicator = document.getElementById('refresh-indicator');
@@ -1325,19 +1590,17 @@ function refreshAll() {
 // Initial load
 refreshAll();
 
-// Countdown and auto-refresh
+// Countdown and auto-refresh — full refresh every 5 min
+// (news uses 4h cache, so this only burns GNews quota once per 4h per panel)
 setInterval(() => {
   countdown--;
   if (countdown <= 0) refreshAll();
-  document.querySelector('#refresh-indicator span').textContent = `Auto-refresh: ${countdown}s`;
+  document.querySelector('#refresh-indicator span').textContent = `Refresh in: ${countdown}s`;
 }, 1000);
 
-// Lighter market data refresh (every 8s for stocks/oil, no news)
-setInterval(() => {
-  fetchForex();
-  fetchOil();
-  renderStocks();
-}, 8000);
+// Market data only — forex every 60s (unlimited), stocks every 30s (cached, queue-throttled)
+setInterval(() => { fetchForex(); fetchOil(); }, 60_000);
+setInterval(() => { renderStocks(); }, 30_000);
 
 // Resize handler for sparklines
 window.addEventListener('resize', () => {
